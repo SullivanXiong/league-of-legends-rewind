@@ -1,0 +1,76 @@
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+wheels/
+
+# Testing / Coverage
+.pytest_cache/
+.coverage*
+htmlcov/
+.tox/
+.nox/
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Logs
+*.log
+
+# --- Django ---
+# SQLite databases
+*.sqlite3
+server/db.sqlite3
+server/db/
+
+# Static and media (collected/generated)
+staticfiles/
+server/staticfiles/
+media/
+
+# Local settings
+local_settings.py
+
+# --- Environment files ---
+# Ignore .env files but keep example
+.env
+.env.*
+server/.env
+server/.env.*
+!server/.env.example
+
+# --- Docker Compose ---
+# Ignore actual compose file but keep example
+/docker-compose.yml
+!/docker-compose.yml.example
+
+# --- Node (if present)
+node_modules/
+
+# --- Misc ---
+*.bak
+*.tmp
+*.swp
+*.swo

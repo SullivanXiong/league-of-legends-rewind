@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  django-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DEBUG=true
+      - DJANGO_ALLOWED_HOSTS=*
+      - CORS_ALLOW_ALL_ORIGINS=true
+      # Switch to PostgreSQL
+      - DB_ENGINE=postgres
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lol_rewind
+    volumes:
+      - ./server:/app
+      - server_static:/app/staticfiles
+      - server_db:/app/db
+    working_dir: /app
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lol_rewind
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  server_static:
+  server_db:
+  postgres_data:
