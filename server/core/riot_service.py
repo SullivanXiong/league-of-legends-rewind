@@ -29,12 +29,25 @@ class RiotApiClient:
         return self._get(url)
 
     # Match-V5
-    def get_match_ids_by_puuid(self, puuid: str, start: int = 0, count: int = 20) -> List[str]:
+    def get_match_ids_by_puuid(self, puuid: str, start: int = 0, count: int = 20, year: Optional[int] = None) -> List[str]:
         url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids"
         params = {'start': start, 'count': count}
+        
+        # Add year filtering if specified
+        if year:
+            # Calculate start and end timestamps for the year
+            start_time = int(dt.datetime(year, 1, 1).timestamp() * 1000)
+            end_time = int(dt.datetime(year + 1, 1, 1).timestamp() * 1000)
+            params['startTime'] = start_time
+            params['endTime'] = end_time
+            
         return self._get(url, params=params)
 
     def get_match(self, match_id: str) -> Dict[str, Any]:
         url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        return self._get(url)
+
+    def get_match_timeline(self, match_id: str) -> Dict[str, Any]:
+        url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/{match_id}/timeline"
         return self._get(url)
 

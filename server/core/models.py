@@ -84,3 +84,19 @@ class MatchParticipant(models.Model):
 
     def __str__(self) -> str:
         return f"{self.summoner_name} - {self.match.match_id}"
+
+
+class MatchTimeline(models.Model):
+    match = models.OneToOneField(Match, related_name='timeline', on_delete=models.CASCADE)
+    data_version = models.CharField(max_length=10, blank=True, null=True)
+    frame_interval = models.IntegerField(blank=True, null=True, help_text='Interval between frames in milliseconds')
+    raw = models.JSONField(default=dict, blank=True, help_text='Raw timeline data from Riot API')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['match']),
+        ]
+
+    def __str__(self) -> str:
+        return f"Timeline for {self.match.match_id}"

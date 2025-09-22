@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Match, MatchParticipant, Summoner
+from .models import Match, MatchParticipant, MatchTimeline, Summoner
 
 
 class SummonerSerializer(serializers.ModelSerializer):
@@ -26,13 +26,22 @@ class MatchParticipantSerializer(serializers.ModelSerializer):
         ]
 
 
+class MatchTimelineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MatchTimeline
+        fields = [
+            'id', 'match', 'data_version', 'frame_interval', 'raw', 'created_at'
+        ]
+
+
 class MatchSerializer(serializers.ModelSerializer):
     participants = MatchParticipantSerializer(many=True, read_only=True)
+    timeline = MatchTimelineSerializer(read_only=True)
 
     class Meta:
         model = Match
         fields = [
             'id', 'match_id', 'data_version', 'game_creation', 'game_duration',
-            'queue_id', 'platform', 'routing', 'raw', 'created_at', 'participants'
+            'queue_id', 'platform', 'routing', 'raw', 'created_at', 'participants', 'timeline'
         ]
 

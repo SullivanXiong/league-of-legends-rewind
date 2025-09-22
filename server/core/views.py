@@ -3,9 +3,10 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Match, Summoner
+from .models import Match, MatchTimeline, Summoner
 from .riot_service import RiotApiClient
 from .serializers import MatchSerializer, SummonerSerializer
+from .tasks import sync_player_data
 
 
 class SummonerViewSet(viewsets.ModelViewSet):
@@ -38,6 +39,87 @@ class SummonerViewSet(viewsets.ModelViewSet):
         )
 
         return Response(self.get_serializer(summoner).data)
+
+    @action(detail=False, methods=['post'], url_path='sync-data')
+    def sync_data(self, request):
+        """
+        Sync all data for a player using Celery workers.
+        This endpoint accepts a player's game_name and tag_line, then spawns
+        Celery workers to handle the data digestion process.
+        """
+        game_name = request.data.get('game_name')
+        tag_line = request.data.get('tag_line')
+        platform = request.data.get('platform', 'na1')
+        routing = request.data.get('routing', 'americas')
+        year = request.data.get('year')  # Optional, defaults to 2025 in task
+
+        if not game_name or not tag_line:
+            return Response(
+                {'detail': 'game_name and tag_line are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate year if provided
+        if year is not None:
+            try:
+                year = int(year)
+                if year < 2020 or year > 2030:  # Reasonable bounds
+                    return Response(
+                        {'detail': 'year must be between 2020 and 2030'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {'detail': 'year must be a valid integer'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Start the Celery task
+        task = sync_player_data.delay(
+            game_name=game_name,
+            tag_line=tag_line,
+            platform=platform,
+            routing=routing,
+            year=year
+        )
+
+        return Response({
+            'task_id': task.id,
+            'status': 'started',
+            'message': f'Data sync started for {game_name}#{tag_line}',
+            'platform': platform,
+            'routing': routing,
+            'year': year or 'default (2025)'
+        }, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=False, methods=['get'], url_path='task-status')
+    def task_status(self, request):
+        """
+        Check the status of a Celery task.
+        """
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response(
+                {'detail': 'task_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from celery.result import AsyncResult
+        task_result = AsyncResult(task_id)
+        
+        response_data = {
+            'task_id': task_id,
+            'status': task_result.status,
+        }
+        
+        if task_result.status == 'PROGRESS':
+            response_data.update(task_result.info)
+        elif task_result.status == 'SUCCESS':
+            response_data.update(task_result.result)
+        elif task_result.status == 'FAILURE':
+            response_data['error'] = str(task_result.info)
+        
+        return Response(response_data)
 
 
 class MatchViewSet(viewsets.ReadOnlyModelViewSet):
@@ -141,4 +223,81 @@ class MatchViewSet(viewsets.ReadOnlyModelViewSet):
             'limit': limit,
             'offset': offset,
             'results': data,
+        })
+
+    @action(detail=True, methods=['post'], url_path='sync-timeline')
+    def sync_timeline(self, request, pk=None):
+        """Sync timeline data for a specific match"""
+        match = self.get_object()
+        
+        if hasattr(match, 'timeline'):
+            return Response({'detail': 'Timeline already exists for this match'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            client = RiotApiClient(platform=match.platform, routing=match.routing)
+            timeline_data = client.get_match_timeline(match.match_id)
+            
+            # Extract metadata from timeline data
+            metadata = timeline_data.get('metadata', {})
+            info = timeline_data.get('info', {})
+            
+            MatchTimeline.objects.create(
+                match=match,
+                data_version=metadata.get('dataVersion'),
+                frame_interval=info.get('frameInterval'),
+                raw=timeline_data,
+            )
+            
+            return Response({'detail': 'Timeline synced successfully'})
+            
+        except Exception as e:
+            return Response({'detail': f'Failed to sync timeline: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='sync-timelines')
+    def sync_timelines(self, request):
+        """Sync timeline data for multiple matches"""
+        match_ids = request.data.get('match_ids', [])
+        platform = request.data.get('platform', 'na1')
+        routing = request.data.get('routing', 'americas')
+        
+        if not match_ids:
+            return Response({'detail': 'match_ids is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not isinstance(match_ids, list):
+            return Response({'detail': 'match_ids must be a list'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        client = RiotApiClient(platform=platform, routing=routing)
+        synced = 0
+        errors = []
+        
+        for match_id in match_ids:
+            try:
+                match = Match.objects.filter(match_id=match_id).first()
+                if not match:
+                    errors.append(f'Match {match_id} not found')
+                    continue
+                
+                if hasattr(match, 'timeline'):
+                    errors.append(f'Timeline already exists for match {match_id}')
+                    continue
+                
+                timeline_data = client.get_match_timeline(match_id)
+                metadata = timeline_data.get('metadata', {})
+                info = timeline_data.get('info', {})
+                
+                MatchTimeline.objects.create(
+                    match=match,
+                    data_version=metadata.get('dataVersion'),
+                    frame_interval=info.get('frameInterval'),
+                    raw=timeline_data,
+                )
+                synced += 1
+                
+            except Exception as e:
+                errors.append(f'Failed to sync timeline for {match_id}: {str(e)}')
+        
+        return Response({
+            'synced': synced,
+            'requested': len(match_ids),
+            'errors': errors
         })
