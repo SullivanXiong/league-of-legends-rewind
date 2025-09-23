@@ -100,3 +100,86 @@ class MatchTimeline(models.Model):
 
     def __str__(self) -> str:
         return f"Timeline for {self.match.match_id}"
+
+
+class PlayerYearlyStats(models.Model):
+    """
+    Aggregated yearly statistics for a player across all their matches.
+    This table provides fast access to aggregated data without needing to
+    calculate sums/averages across multiple tables.
+    """
+    summoner = models.ForeignKey(Summoner, related_name='yearly_stats', on_delete=models.CASCADE)
+    year = models.IntegerField()
+    platform = models.CharField(max_length=10)
+    
+    # Match counts
+    total_matches = models.IntegerField(default=0)
+    wins = models.IntegerField(default=0)
+    losses = models.IntegerField(default=0)
+    
+    # Aggregated stats
+    total_kills = models.IntegerField(default=0)
+    total_deaths = models.IntegerField(default=0)
+    total_assists = models.IntegerField(default=0)
+    total_gold_earned = models.BigIntegerField(default=0)
+    total_minions_killed = models.IntegerField(default=0)
+    total_neutral_minions_killed = models.IntegerField(default=0)
+    total_damage_to_champions = models.BigIntegerField(default=0)
+    
+    # Champion diversity
+    unique_champions_played = models.IntegerField(default=0)
+    most_played_champion = models.CharField(max_length=40, blank=True, null=True)
+    most_played_champion_count = models.IntegerField(default=0)
+    
+    # Role/Lane diversity
+    unique_roles_played = models.IntegerField(default=0)
+    unique_lanes_played = models.IntegerField(default=0)
+    
+    # Calculated fields (can be computed from above)
+    win_rate = models.FloatField(default=0.0)
+    kda_ratio = models.FloatField(default=0.0)
+    average_kills = models.FloatField(default=0.0)
+    average_deaths = models.FloatField(default=0.0)
+    average_assists = models.FloatField(default=0.0)
+    average_gold_per_match = models.FloatField(default=0.0)
+    average_cs_per_match = models.FloatField(default=0.0)
+    
+    # Metadata
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('summoner', 'year', 'platform')
+        indexes = [
+            models.Index(fields=['summoner', 'year']),
+            models.Index(fields=['year', 'platform']),
+            models.Index(fields=['win_rate']),
+            models.Index(fields=['total_matches']),
+        ]
+    
+    def __str__(self) -> str:
+        return f"{self.summoner.name} - {self.year} ({self.platform})"
+    
+    def calculate_derived_stats(self):
+        """Calculate derived statistics from base stats."""
+        if self.total_matches > 0:
+            self.win_rate = (self.wins / self.total_matches) * 100
+            self.average_kills = self.total_kills / self.total_matches
+            self.average_deaths = self.total_deaths / self.total_matches
+            self.average_assists = self.total_assists / self.total_matches
+            self.average_gold_per_match = self.total_gold_earned / self.total_matches
+            self.average_cs_per_match = (self.total_minions_killed + self.total_neutral_minions_killed) / self.total_matches
+            
+            # KDA calculation: (Kills + Assists) / Deaths (avoid division by zero)
+            if self.total_deaths > 0:
+                self.kda_ratio = (self.total_kills + self.total_assists) / self.total_deaths
+            else:
+                self.kda_ratio = self.total_kills + self.total_assists  # Perfect KDA
+        else:
+            self.win_rate = 0.0
+            self.average_kills = 0.0
+            self.average_deaths = 0.0
+            self.average_assists = 0.0
+            self.average_gold_per_match = 0.0
+            self.average_cs_per_match = 0.0
+            self.kda_ratio = 0.0

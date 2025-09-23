@@ -12,5 +12,5 @@ tzdata==2025.2
 urllib3==2.5.0
 psycopg[binary]==3.2.10
 celery==5.4.0
-redis==5.2.1
-django-celery-beat==2.8.0
+kombu==5.5.4
+amqp==5.3.1

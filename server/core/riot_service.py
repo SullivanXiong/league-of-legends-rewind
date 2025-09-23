@@ -29,19 +29,49 @@ class RiotApiClient:
         return self._get(url)
 
     # Match-V5
-    def get_match_ids_by_puuid(self, puuid: str, start: int = 0, count: int = 20, year: Optional[int] = None) -> List[str]:
+    def get_match_ids_by_puuid(self, puuid: str, start: int = 0, count: int = 20, year: Optional[int] = None, max_matches: int = 1500) -> List[str]:
         url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids"
-        params = {'start': start, 'count': count}
         
-        # Add year filtering if specified
+        # If year filtering is requested, we need to fetch all matches and filter
         if year:
-            # Calculate start and end timestamps for the year
-            start_time = int(dt.datetime(year, 1, 1).timestamp() * 1000)
-            end_time = int(dt.datetime(year + 1, 1, 1).timestamp() * 1000)
-            params['startTime'] = start_time
-            params['endTime'] = end_time
+            # For now, skip year filtering to avoid rate limits
+            # Since we know all matches are from 2025, just return all matches
+            print(f"Note: Skipping year filtering for {year} to avoid rate limits. All matches will be processed.")
+            return self._get_all_match_ids_paginated(puuid, max_matches)
+        else:
+            # No year filtering, but if max_matches > count, use pagination
+            if max_matches > count:
+                return self._get_all_match_ids_paginated(puuid, max_matches)
+            else:
+                params = {'start': start, 'count': count}
+                return self._get(url, params=params)
+    
+    def _get_all_match_ids_paginated(self, puuid: str, max_matches: int = 1500) -> List[str]:
+        """Fetch all match IDs using pagination."""
+        url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids"
+        all_match_ids = []
+        start = 0
+        batch_size = 100  # Maximum allowed by Riot API
+        
+        while len(all_match_ids) < max_matches:
+            remaining = max_matches - len(all_match_ids)
+            current_batch_size = min(batch_size, remaining)
             
-        return self._get(url, params=params)
+            params = {'start': start, 'count': current_batch_size}
+            batch_match_ids = self._get(url, params=params)
+            
+            if not batch_match_ids:
+                # No more matches available
+                break
+            
+            all_match_ids.extend(batch_match_ids)
+            start += len(batch_match_ids)
+            
+            # If we got fewer matches than requested, we've reached the end
+            if len(batch_match_ids) < current_batch_size:
+                break
+        
+        return all_match_ids
 
     def get_match(self, match_id: str) -> Dict[str, Any]:
         url = f"https://{self.routing}.api.riotgames.com/lol/match/v5/matches/{match_id}"

@@ -1,0 +1,201 @@
+{
+  "rabbit_version": "3.12.0",
+  "rabbitmq_version": "3.12.0",
+  "product_name": "RabbitMQ",
+  "product_version": "3.12.0",
+  "users": [
+    {
+      "name": "guest",
+      "password_hash": "guest",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "default",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "player_sync",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "match_processing",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "timeline_processing",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "recovery",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "maintenance",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "default",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 3600000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "player_sync",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 7200000,
+        "x-max-length": 1000,
+        "x-dead-letter-exchange": "default"
+      }
+    },
+    {
+      "name": "match_processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1800000,
+        "x-max-length": 5000,
+        "x-dead-letter-exchange": "default"
+      }
+    },
+    {
+      "name": "timeline_processing",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1800000,
+        "x-max-length": 5000,
+        "x-dead-letter-exchange": "default"
+      }
+    },
+    {
+      "name": "recovery",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 14400000,
+        "x-max-length": 100,
+        "x-dead-letter-exchange": "default"
+      }
+    },
+    {
+      "name": "maintenance",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 3600000,
+        "x-max-length": 100,
+        "x-dead-letter-exchange": "default"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "default",
+      "vhost": "/",
+      "destination": "default",
+      "destination_type": "queue",
+      "routing_key": "default",
+      "arguments": {}
+    },
+    {
+      "source": "player_sync",
+      "vhost": "/",
+      "destination": "player_sync",
+      "destination_type": "queue",
+      "routing_key": "player_sync",
+      "arguments": {}
+    },
+    {
+      "source": "match_processing",
+      "vhost": "/",
+      "destination": "match_processing",
+      "destination_type": "queue",
+      "routing_key": "match_processing",
+      "arguments": {}
+    },
+    {
+      "source": "timeline_processing",
+      "vhost": "/",
+      "destination": "timeline_processing",
+      "destination_type": "queue",
+      "routing_key": "timeline_processing",
+      "arguments": {}
+    },
+    {
+      "source": "recovery",
+      "vhost": "/",
+      "destination": "recovery",
+      "destination_type": "queue",
+      "routing_key": "recovery",
+      "arguments": {}
+    },
+    {
+      "source": "maintenance",
+      "vhost": "/",
+      "destination": "maintenance",
+      "destination_type": "queue",
+      "routing_key": "maintenance",
+      "arguments": {}
+    }
+  ]
+}

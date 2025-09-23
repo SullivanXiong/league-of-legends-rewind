@@ -12,16 +12,15 @@ The workflow allows the frontend to make a single POST request with a player's `
 
 1. **Django REST API** - Handles the initial request and returns task ID
 2. **Celery Workers** - Process the data sync tasks asynchronously
-3. **Redis** - Message broker and result backend for Celery
+3. **RabbitMQ** - Message broker with persistence for Celery
 4. **PostgreSQL** - Database for storing all data
 
 ### Services
 
 - `django-server` - Main Django application
 - `celery-worker` - Processes background tasks
-- `celery-beat` - Handles scheduled tasks
 - `postgres` - Database
-- `redis` - Message broker
+- `rabbitmq` - Message broker
 
 ## API Endpoints
 
@@ -137,14 +136,11 @@ docker-compose logs -f django-server
 ### Manual Setup
 
 ```bash
-# Start Redis
-redis-server
+# Start RabbitMQ
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management-alpine
 
 # Start Celery Worker
 celery -A config worker -l info
-
-# Start Celery Beat (for scheduled tasks)
-celery -A config beat -l info
 
 # Start Django Server
 python manage.py runserver
@@ -153,7 +149,7 @@ python manage.py runserver
 ## Data Flow
 
 1. **Frontend Request** → POST to `/api/summoners/sync-data/`
-2. **Task Creation** → Celery task queued with Redis
+2. **Task Creation** → Celery task queued with RabbitMQ
 3. **Worker Processing** → Background task processes data
 4. **Progress Updates** → Real-time status via task status endpoint
 5. **Data Storage** → All data stored in PostgreSQL
